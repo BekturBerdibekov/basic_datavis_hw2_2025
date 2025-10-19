@@ -1,0 +1,397 @@
+---
+title: "BI_retarining_datavis_hw_2"
+date: "2025-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Подгрузка библиотек
+library(tidyverse)
+
+# Другие бибилотеки, на ваш вкус
+library(ggstatsplot) 
+
+# Загрузка данных
+hogwarts <- read_csv("data/hogwarts_2025.csv")
+
+```
+
+```{r translations_and_colours}
+exams_translating <- c(
+ "Defence against the dark arts exam" = "ЗОТИ",
+ "Flying exam" = "Полеты",
+ "Astronomy exam" = "Астрономия",
+ "Herbology exam" = "Травология",
+ "Divinations exam" = "Прорицания",
+ "Charms exam" = "Заклинания",
+ "History of magic exam" = "История магии",
+ "Arithmancy exam" = "Нумерология",                   
+ "Muggle studies exam" = "Магловедение",
+ "Study of ancient runes exam" = "Древние руны",
+ "Transfiguration exam" = "Трансфигурация",
+ "Potions exam" = "Зельеварение",                      
+ "Care of magical creatures exam" = "Уход за магическими существами"
+)
+
+hogwarts_houses_names <- c(
+      "Gryffindor" = "Гриффиндор",
+      "Hufflepuff" = "Пуффендуй",
+      "Ravenclaw" = "Когтевран",
+      "Slytherin" = "Слизерин"
+    )
+
+hogwarts_houses_colours <- c(
+      "Gryffindor" = "#C50000",
+      "Hufflepuff" = "#ECB939",
+      "Ravenclaw" = "#41A6D9",
+      "Slytherin" = "#1F5D25"
+    )
+
+hogwarts_houses_fill <- scale_fill_manual(
+    name = "Факультет",
+    labels = hogwarts_houses_names,
+    values = hogwarts_houses_colours
+  )
+
+hogwarts_houses_colour <- scale_colour_manual(
+    name = "Факультет",
+    labels = hogwarts_houses_names,
+    values = hogwarts_houses_colours
+  )
+
+hogwarts_houses_x <- scale_x_discrete(
+    name = "Факультет",
+    labels = hogwarts_houses_names
+)
+```
+
+## 1  Изучите сайт со списком расширений ggplot2.Подберите ранее не использовавшийся в лекциях и домашних заданиях пакет, опции которого вам показались любопытными для визуализации данных hogwarts. Используйте возможности данного пакета, проинтерпретируйте получившийся график и опишите, почему использованный инструментарий пакета показался вам интересным и полезным.
+
+```{r ggstatsplot, fig.width=14, fig.height=8, fig.cap='Распределение итоговых баллов по факультетам Хогвартса (ggstatsplot)'}
+
+ggbetweenstats(
+  data = hogwarts,
+  x = house,
+  y = result,
+  title = "Распределение итоговых баллов по факультетам Хогвартса",
+  xlab = "Факультет",
+  ylab = "Итоговый балл",
+  pairwise.comparisons = TRUE,
+  pairwise.display = "significant",
+  centrality.plotting = TRUE,
+  ggtheme = theme_classic(base_size = 18),  
+  messages = FALSE
+)
+
+```
+
+Для визуализации данных выбран пакет ggstatsplot, который расширяет возможности ggplot2, автоматически выполняя статистический анализ и добавляя его результаты прямо на график. Такой подход позволяет объединить визуализацию распределений и вывод статистических критериев в одном информативном изображении, ято в ряде случаев может быть полезным, например для презентации результатов в PPT
+Построенный график с помощью функции ggbetweenstats() представляет собой комбинированную визуализацию, включающую элементы violin plot и boxplot. Кроме того, пакет ggstatsplot автоматически выполняет однофакторный дисперсионный анализ (ANOVA) и выводит p-значения для оценки статистической значимости различий между факультетами, в данном случае указаны лишь статистически значимые различия при попарном сравнении (чтобы не перегружать изображение).
+Представлены значения p в результате попарных сравнений (Games–Howell test), которые отображены над графиком. Апостериорный анализ показал, что средние значения итогового балла статистически значимо различались между факультетами Гриффиндор и Когтевран (р < 0.001), между Пуффендуй и Когтевран (р < 0.001), а также между факультетами Когтевран и Слизерин (р < 0.001). В тоже время, при попарном сравнении итогового балла между факультетами Гриффиндор и Пуффендуй, между Гриффиндор и Слизерин, а также между Пуффендуй и Слизерин статистически значимых раздичий обнаружено не было. 
+Наконец, красная точка обозначает среднее значение, а горизонтальная линия медиану; расхождение между ними особенно заметное у факультета Слизерин отражает асимметрию распределения и большой разброс показателей, это видно и по boxplot и violin plot.
+
+Таким образом, график одновременно демонстрирует распределение, статистические характеристики и индивидуальные данные, обеспечивая наглядное сравнение между факультетами.
+
+
+
+## 2  Изучите информацию о графике treemap. Как вы полагаете, в чем его отличие от мозаик-плота? Исходя из структуры графика, предположите, в каких ситуациях лучше будет подходить treemap, а в каких -- мозаик-плот. Создайте treemap на данных hogwarts. Вы вольны использовать любые ополнительные пакеты в этом задании. 
+
+Treemap показывает, из чего состоит выборка: каждый прямоугольник - это категория, а его площадь пропорциональна числу наблюдений. Прямоугольники можно вкладывать друг в друга, то есть легко показать иерархию «группа -> подгруппа».
+Mosaic - это «плитка» по двум категориям. Ширина и высота плиток отражают доли по каждой из переменных. Такой график удобен, когда нужно понять, есть ли связь между двумя признаками.
+
+
+
+```{r treemap, fig.width=12, fig.height=8, fig.align='center'}
+library(treemapify)
+library(grid)
+
+
+# Подготовка данных
+df_treemap <- hogwarts |>
+  count(house, bloodStatus, name = "n") |>
+  group_by(house) |>
+  mutate(
+    pct_in_house = n / sum(n),
+    label = paste0(bloodStatus, "\n", scales::percent(pct_in_house, 1)),
+    house_ru = hogwarts_houses_names[house]
+  ) |>
+  ungroup()
+
+# График
+ggplot(df_treemap, aes(area = n, fill = house, subgroup = house_ru, label = label)) +
+  geom_treemap(colour = "white", size = 1) +
+  geom_treemap_subgroup_border(colour = "white", size = 2) +
+  geom_treemap_subgroup_text(
+    label = df_treemap$house_ru,
+    place = "centre", grow = TRUE, reflow = TRUE,
+    colour = "white", alpha = 0.25, fontface = "bold", min.size = 18
+  ) +
+  geom_treemap_text(
+    place = "topleft", grow = FALSE, reflow = TRUE, min.size = 7,
+    colour = "white", padding.x = unit(2, "mm"), padding.y = unit(6, "mm")
+  ) +
+  scale_fill_manual(
+    name = "Факультет",
+    values = hogwarts_houses_colours,
+    labels = hogwarts_houses_names
+  ) +
+  labs(
+    title = "Treemap: состав факультетов по статусу крови",
+    subtitle = "Площадь = число студентов; подписи — доля внутри факультета",
+    x = NULL, y = NULL
+  ) +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "bottom")
+
+```
+Это грфик treemap «Факультет -> Статус крови». Площадь каждого большого прямоугольника равен числу студентов факультета; вложенные плитки показывают состав по статусу крови и долю внутри факультета.
+По данному графику видно, что во всех факультетах доминируют полукровные (half-blood). Факультет слизерин имеет наибольшую долю чистокровных и нет маглорожденных. В Гриффиндор — самая высокая доля маглорожденных среди факультетов; у Пуффендуя — наименьшая.
+По площади видно, какие факультеты численнее в выборке (самые большие блоки - самые многочисленные).
+
+
+## 3 Постройте “леденцовый график” (lollipop-plot) для количества набранных студентами 5-го курса баллов за весь учебный год (по оси ординат – id студента, по оси абсцисс – итоговый балл). Отсортируйте студентов в порядке убывания итогового балла. Раскрасьте точки на “леденцах” в зависимости от сердцевины волшебной палочки. Палочки с сердечной жилой дракона должны быть красного цвета, с пером феникса – желтого, с волосом единорога – серого.В этом задании вы можете использовать только основные пакеты tidyverse.
+
+```{r  fig.width=12, fig.height=10, fig.align='center'}
+ 
+
+# палитра для сердцевин палочек
+wand_cols <- c(
+  "dragon heartstring" = "red",
+  "phoenix feather"    = "yellow",
+  "unicorn hair"       = "grey50"
+)
+
+lolli_df <- hogwarts %>%
+  filter(course == 5) %>%                #  5-й курс
+  select(id, result, wandCore) %>%
+  drop_na(result, wandCore) %>%
+  arrange(desc(result)) %>%              # сортировка по убыванию балла
+  mutate(
+    id = factor(id, levels = id),        # порядок по оси Y согласно сортировке
+    id = fct_rev(id)                     # чтобы лучший был сверху
+  )
+
+ggplot(lolli_df, aes(x = result, y = id)) +
+  geom_segment(aes(x = 0, xend = result, y = id, yend = id), linewidth = 0.7, alpha = 0.5) +
+  geom_point(aes(color = wandCore), size = 2.4) +
+  scale_color_manual(values = wand_cols, name = "Сердцевина палочки",
+                     breaks = c("dragon heartstring","phoenix feather","unicorn hair"),
+                     labels = c("dragon heartstring" = "dragon (красный)",
+                                "phoenix feather"    = "phoenix (жёлтый)",
+                                "unicorn hair"       = "unicorn (серый)")) +
+  labs(title = "Итоговый балл студентов 5-го курса",
+       x = "Итоговый балл (result)", y = "ID студента") +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "bottom") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.02)))
+```
+
+
+## 4
+
+Положительных сторон данного графика я не вижу совсем (у меня частичный дальтонизм)), и для меня вообще (да и наверное для многих) очень плохо не видны представленные данные
+Итак, что в первую очередь мешает при взляде на график это основая фоновая картинка медведя + полупрозрачные слои, линии в виде сетки, что создает сильный визуальный шум и ухудшает читаемость.
+
+Хотя указывается что максимальный балл 2, по оси Y не понятно в каких единицах представлены данные и еще подписано "ms". 
+Вероятно представлены bar plot (с данными ДИ, СО или SE, какие границы, не ясно по данному графику).
+По оси  Х полагаю недели, однако во первых они представлены не по возрастанию 14, 11, 8, 18, 27, 36, что не дает делать такие выводы как в задаче, что "В последующие недели балл достоверно снижался, достигая минимальных значений к концу года". Кпроме того, избегаем использование термина "достоверность". 
+В зачаче написано с начала года до конца года, соответсвенно отображение должно начинаться с нуля, далее 1 неделя и тд., и в конца последняя неделя года, соответсвенно 52я неделя, если учесть каинкулы то 40я неделя.
+Еще по оси  Х необходимо указывать единый интервал, например каждые 4 недели.
+
+Таким образом, делать выводы о снижении среднего балла в динакмике по представленному рисунку мы не можем. 
+
+Кроме того, авторвми сделан вывод что данный процесс связан с ухудшением психологического состояния преподавателей означенного учебного заведения. По данному рисунку вообще никаких предположений о причине динамики баллов мы не можем, не важно правильно был он составлен или нет. Чтобы выявить ассоциацию динамики баллов с определенными факторами необходимо использовать другие меры ассоциации - возможно линейную регрессию/смешанные линейные модели. 
+
+В любом случае, по данному графику никаких предположений о причине динамики баллов мы не можем, тем более заменять преподавателей и объявлять выговор с занесением в личное дело.
+
+
+
+
+
+```{r task4_weekly_mean_ci, fig.width=12, fig.height=7, fig.align='center'}
+ 
+
+# 1) поготовка данных
+weekly_long <- hogwarts %>%
+  pivot_longer(cols = matches("^week_\\d+$"),
+               names_to = "week", values_to = "score") %>%
+  mutate(week = readr::parse_number(week)) %>%
+  filter(!is.na(score) & !is.na(week))
+
+
+weekly_sum <- weekly_long %>%
+  group_by(week) %>%
+  summarise(
+    n    = sum(!is.na(score)),
+    mean = mean(score, na.rm = TRUE),
+    se   = sd(score, na.rm = TRUE) / sqrt(n),
+    lwr  = mean - 1.96 * se,
+    upr  = mean + 1.96 * se,
+    .groups = "drop"
+  )
+
+# 2) график
+ggplot(weekly_sum, aes(x = week, y = mean)) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.20, fill = "grey70") +
+  geom_line(linewidth = 1.0, color = "black") +
+  geom_point(size = 1.8, color = "black") +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", linewidth = 0.9, color = "black") +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "grey50") +
+  scale_x_continuous(breaks = seq(1, 40, by = 4)) +
+  labs(
+    title = "Динамика среднего недельного балла (Hogwarts)",
+    subtitle = "Показаны средние значения по всем студентам за неделю; полоса — 95% доверительный интервал среднего",
+    x = "Неделя учебного года (1–40)",
+    y = "Средний балл за неделю"
+  ) +
+  theme_classic(base_size = 16)
+```
+
+## 5 Рубрика "вредные советы" А теперь воспроизведите график из задания выше. Подсказка к реализации элемента, который мы не упоминали на лекции, находится в датасете podskazka2.csv -- сделайте из него скаттерплот, отрисовав переменную X по горизонтали, а Y -- по вертикали. Уточнение – не обязательно точно попасть в конкретный цвет. Задание не предполагает угадывание оттенков “на глаз”
+
+
+```{r fig.width=8, fig.height=6}
+
+podskazka2 <- read_csv("data/podskazka2.csv")
+
+ggplot(podskazka2, aes(x = X, y = Y)) +
+  geom_point(size = 4, alpha = 0.8, color = "#E63946") +
+  theme_minimal(base_size = 16) 
+```
+
+
+
+```{r fig.width=8, fig.height=25}
+
+library(ggimage)
+library(grid)
+
+#  данные 
+weekly_sum <- tibble(
+  week = factor(c(14, 11, 8, 18, 27, 36), levels = c(14, 11, 8, 18, 27, 36)),
+  ms   = c(205, 125, 82, -45, -122, -188)
+)
+
+# диапазон 
+y_lims <- c(-200, 250)
+y_breaks <- seq(-200, 250, 10)
+
+bands <- tibble(
+  xmin = c(0.5, 1.5, 2.5, 3.5, 4.5, 5.5),
+  xmax = c(1.5, 2.5, 3.5, 4.5, 5.5, 6.5),
+  fill = c("#60E37E", "#A4FF72", "#FFE06B", "#FFA07A", "#FF6F6B", "#E63C3C")
+)
+
+#  цвета столбиков
+bar_cols <- c("#2B3D2B","#2E3F2E","#2F3133","#303337","#2E2E2E","#1A1A1A")
+
+#  усы для столбиков
+err_df <- weekly_sum %>%
+  mutate(ymin = ms - 14, ymax = ms + 14)
+
+#  диагональные стрелки
+diag_df <- tibble(
+  x = c(1, 1),
+  y = c(230, 230),
+  xend = c(6, 6),
+  yend = c(-190, -190),
+  col = c("red"),
+  lwd = c(1.4, 0.9)
+)
+
+#  графика
+p <- ggplot() +
+  # вертикальные зоны
+  geom_rect(data = bands,
+            aes(xmin = xmin, xmax = xmax, ymin = y_lims[1], ymax = y_lims[2], fill = fill),
+            alpha = 0.22) +
+  scale_fill_identity() +
+
+  # столбики 
+  geom_rect(
+    data = weekly_sum,
+    aes(xmin = as.numeric(week) - 0.20,
+        xmax = as.numeric(week) + 0.20,
+        ymin = -200,
+        ymax = ms),
+    fill = bar_cols, alpha = 0.7
+  ) +
+
+  # усы
+  geom_errorbar(data = err_df,
+                aes(x = week, ymin = ymin, ymax = ymax),
+                width = 0.12, color = "black", linewidth = 2) +
+
+  # диагональные стрелки
+  geom_segment(data = diag_df,
+               aes(x = x, y = y, xend = xend, yend = yend),
+               color = diag_df$col, linewidth = diag_df$lwd,
+               arrow = arrow(length = unit(5, "pt"))) +
+
+  # плашки
+  geom_label(aes(x = 1.25, y = 225,
+                 label = "В начале учебного года педагоги\nрасположены мотивировать учащихся"),
+             fill = "white", color = "darkgreen", label.size = 0, size = 3.8) +
+  geom_label(aes(x = 5.4, y = -155,
+                 label = "К концу года учителя применяют\nбольше репрессивных мер"),
+             fill = "white", color = "red", label.size = 0, size = 3.8) +
+
+  # оформление
+  scale_x_discrete(name = "Week number") +
+  scale_y_continuous(name = "ms", limits = y_lims, expand = c(0, 0)) +
+  labs(
+    title = "Эмоциональное выгорание преподавателей или лень учеников?",
+    subtitle = "Semantical decreasing of mean score for every subsequent week in Hogwarts"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(panel.grid = element_blank()) +
+  annotate("text", x = 0.7, y = -190, label = "ms",
+           angle = 90, hjust = 0, size = 3.2)
+
+#  фон
+ggbackground(p, background = "images/fire_bear_2.png")
+
+```
+
+## 6
+
+```{r fig.width=16, fig.height=10}
+set.seed(2025)
+
+colours_ <- colours()
+res_colours <- colours_[colours_ |> str_detect("grey|gray|black|white", negate = TRUE)]|>  
+  sample(size = 36)
+library(patchwork)
+
+# функция для построения одной гистограммы по цвету
+
+hist_result <- function(colour) {
+  ggplot(hogwarts, aes(x = result)) +
+    geom_histogram(
+      binwidth = 20, 
+      fill = colour, 
+      color = "white", 
+      linewidth = 0.3, 
+      boundary = 0
+    ) +
+    labs(title = colour, x = NULL, y = NULL) +
+    theme_minimal(base_size = 10) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 9),
+      axis.text = element_text(size = 7),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank()
+    )
+}
+
+# создаем список графиков по всем 36 цветам
+
+plots <- purrr::map(res_colours, hist_result)
+
+# собираем все графики в одно полотно
+
+wrap_plots(plots, ncol = 6) +
+  plot_annotation(title = "Распределение итогового балла студентов")
+```
